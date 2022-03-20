@@ -114,5 +114,55 @@ class WidgetRestControllerTest {
             throw new RuntimeException(e);
         }
     }
+    @Test
+    @DisplayName("PUT /rest/widget/1")
+    void testUpdateWidget() throws Exception {
+        Widget widgetToPut = new Widget("New Widget", "This is my widget");
+        Widget widgetToReturn = new Widget(1L, "New Widget", "This is my widget", 2);
+        Widget widgetToReturnSave = new Widget(1L, "New Widget", "This is my widget", 3);
+        doReturn(Optional.of(widgetToReturn)).when(service).findById(1L);
+        doReturn(widgetToReturnSave).when(service).save(any());
+        mockMvc.perform(put("/rest/widget/{id}", 1l)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.IF_MATCH, 2)
+                .content(asJsonString(widgetToPut)))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(header().string(HttpHeaders.LOCATION, "/rest/widget/1"))
+                .andExpect(header().string(HttpHeaders.ETAG, "\"3\""))
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("New Widget")))
+                .andExpect(jsonPath("$.description", is("This is my widget")))
+                .andExpect(jsonPath("$.version", is(3)));
+    }
 
+    @Test
+    @DisplayName("PUT /rest/widget/1 - Conflict")
+    void testUpdateWidgetConflict() throws Exception {
+        Widget widgetToPut = new Widget("New Widget", "This is my widget", 1);
+        Widget widgetToReturn = new Widget(1L, "New Widget", "This is my widget", 2);
+        doReturn(Optional.of(widgetToReturn)).when(service).findById(1L);
+        doReturn(widgetToReturn).when(service).save(any());
+        mockMvc.perform(put("/rest/widget/{id}", 1l)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header(HttpHeaders.IF_MATCH, 3)
+                .content(asJsonString(widgetToPut)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
+    @DisplayName("GET /rest/widget/1")
+    void testGetWidgetById() throws Exception {
+        Widget widget = new Widget(1l, "Widget Name", "Description", 1);
+        doReturn(Optional.of(widget)).when(service).findById(1l);
+        mockMvc.perform(get("/rest/widget/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(header().string(HttpHeaders.LOCATION, "/rest/widget/1"))
+                .andExpect(header().string(HttpHeaders.ETAG, "\"1\""))
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Widget Name")))
+                .andExpect(jsonPath("$.description", is("Description")))
+                .andExpect(jsonPath("$.version", is(1)));
+    }
 }
